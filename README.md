@@ -6,6 +6,8 @@ with usage-aware selection and automatic failover, so a long workflow never stop
 
 It's a single `server.js` (Node 18+, no npm install) serving a dashboard and a small HTTP proxy.
 
+![Dashboard](docs/dashboard.png)
+
 > **Responsible use.** Only add tokens/keys you are authorized to use. Pooling or sharing subscription
 > credentials may violate your provider's terms of service — check them. This project is a usage monitor and a
 > load-balancing proxy; how you use it is your responsibility.
@@ -27,6 +29,18 @@ It's a single `server.js` (Node 18+, no npm install) serving a dashboard and a s
   stray errors instead of dying). Tiny footprint (~25–30 MB RAM, capped CPU).
 - **No database, no dependencies** — state is a single `data/tokens.json` (mode 0600), written atomically with a
   `.bak`. Restarts keep your list.
+
+### Screenshots
+
+Expand any account for its windows, reset times, per-account caps, and the **learned owner-activity** heatmap:
+
+![Account detail](docs/account-detail.png)
+
+Works on mobile too:
+
+<img src="docs/mobile.png" width="360" alt="Mobile view">
+
+*(All screenshots use placeholder demo data.)*
 
 ---
 
