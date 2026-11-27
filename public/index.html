@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Token Limit Explorer</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Crect x='7' y='17' width='4' height='8' rx='1' fill='white'/%3E%3Crect x='14' y='11' width='4' height='14' rx='1' fill='white'/%3E%3Crect x='21' y='7' width='4' height='18' rx='1' fill='white'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f3f5fa; --card: #fff; --ink: #0f172a; --ink2: #334155; --muted: #64748b; --line: #e2e8f0;
+    --accent: #4f46e5; --accent-soft: #eef2ff; --ok: #16a34a; --ok-soft: #dcfce7; --warn: #d97706; --warn-soft: #fef3c7;
+    --bad: #dc2626; --bad-soft: #fee2e2; --info: #0284c7; --info-soft: #e0f2fe; --track: #e8ecf3;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  button { font: inherit; cursor: pointer; }
+  input, textarea { font: inherit; color: inherit; }
+  .hidden { display: none !important; }
+
+  /* login */
+  #login { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
+  .login-card { width: 100%; max-width: 360px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 28px; box-shadow: 0 10px 30px rgba(15,23,42,.06); }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+  .logo { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); display: grid; place-items: center; }
+  .login-card p { color: var(--muted); margin: 6px 0 22px; }
+  label.f { display: block; font-size: 12px; font-weight: 600; color: var(--ink2); margin: 12px 0 5px; }
+  .in { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; outline: none; }
+  .in:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  textarea.in { resize: vertical; font-family: var(--mono); font-size: 12.5px; min-height: 96px; }
+  .btn { border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 10px; padding: 8px 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .btn:hover { background: #f8fafc; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.danger { color: var(--bad); }
+  .btn.danger:hover { background: var(--bad-soft); }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.block { width: 100%; justify-content: center; padding: 11px; margin-top: 20px; }
+  .err { color: var(--bad); font-size: 13px; min-height: 18px; margin-top: 10px; }
+
+  /* app shell */
+  header.top { position: sticky; top: 0; z-index: 5; background: rgba(255,255,255,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .top-in { max-width: 1240px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .top-in .brand { font-size: 16px; margin-right: auto; }
+  .count { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--track); border-radius: 99px; padding: 2px 9px; }
+  .auto { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink2); }
+  .auto small { color: var(--muted); }
+  .switch { position: relative; width: 38px; height: 22px; border-radius: 99px; background: #cbd5e1; border: 0; padding: 0; transition: background .15s; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: left .15s; }
+  .switch.on { background: var(--accent); }
+  .switch.on::after { left: 19px; }
+  main { max-width: 1240px; margin: 0 auto; padding: 18px 20px 60px; }
+
+  .stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+  .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 12px; color: var(--muted); }
+  .stat.ok b { color: var(--ok); } .stat.warn b { color: var(--warn); } .stat.bad b { color: var(--bad); }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .toolbar .in { width: auto; padding: 8px 12px; }
+  .toolbar .search { flex: 1; min-width: 180px; }
+  select.in { padding-right: 28px; }
+
+  /* token cards */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 10px; overflow: hidden; transition: box-shadow .15s; }
+  .card:hover { box-shadow: 0 4px 16px rgba(15,23,42,.05); }
+  .head { display: grid; grid-template-columns: 22px minmax(0, 1fr) 340px 124px; gap: 14px; align-items: center; padding: 12px 16px; cursor: pointer; user-select: none; }
+  .chev { color: var(--muted); transition: transform .15s; font-size: 12px; }
+  .card.open .chev { transform: rotate(90deg); }
+  .who { min-width: 0; }
+  .name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .idx { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .name { font-weight: 650; font-size: 15px; }
+  .name.unnamed { color: var(--muted); font-weight: 500; font-style: italic; }
+  .pill { font-size: 11px; font-weight: 700; border-radius: 99px; padding: 2px 8px; letter-spacing: .02em; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.info { background: var(--info-soft); color: var(--info); }
+  .pill.grey { background: var(--track); color: var(--muted); }
+  .tok-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 5px; }
+  .tok { font-family: var(--mono); font-size: 12px; color: var(--ink2); background: #f8fafc; border: 1px solid var(--line); border-radius: 7px; padding: 4px 8px; word-break: break-all; user-select: all; cursor: text; min-width: 0; }
+  .copy { flex: none; border: 1px solid var(--line); background: #fff; border-radius: 7px; padding: 3px 9px; font-size: 12px; font-weight: 600; color: var(--accent); }
+  .copy:hover { background: var(--accent-soft); }
+  .copy.done { color: var(--ok); border-color: var(--ok); }
+  .mini { display: grid; gap: 7px; }
+  .mbar { display: grid; grid-template-columns: 38px 1fr 42px auto; gap: 8px; align-items: center; font-size: 12px; }
+  .mbar .ml { color: var(--muted); font-weight: 600; }
+  .mbar .mv { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .mbar .mreset { color: var(--muted); font-size: 11px; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 58px; text-align: right; }
+  .track { height: 8px; background: var(--track); border-radius: 99px; overflow: hidden; }
+  .fill { height: 100%; border-radius: 99px; background: var(--ok); transition: width .4s; }
+  .fill.warn { background: var(--warn); } .fill.bad { background: var(--bad); } .fill.none { background: transparent; }
+  .side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .icon { border: 1px solid var(--line); background: #fff; border-radius: 8px; width: 32px; height: 30px; display: grid; place-items: center; color: var(--ink2); padding: 0; }
+  .icon:hover { background: #f8fafc; color: var(--accent); }
+  .icon svg { width: 15px; height: 15px; }
+  .spin svg { animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .ago { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+  .body { display: none; border-top: 1px solid var(--line); padding: 16px; background: #fbfcfe; }
+  .card.open .body { display: block; }
+  .wins { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .win { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .win h4 { margin: 0; font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .win .big { font-size: 26px; font-weight: 750; margin: 2px 0 8px; font-variant-numeric: tabular-nums; }
+  .win .big small { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .win .track { height: 10px; }
+  .win .meta { font-size: 12px; color: var(--ink2); margin-top: 8px; }
+  .win .meta .muted { color: var(--muted); }
+  .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px 18px; margin-top: 14px; font-size: 13px; }
+  .facts .k { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+  .facts code { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+  .alert { border-radius: 10px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; }
+  .alert.bad { background: var(--bad-soft); color: #991b1b; }
+  .alert.info { background: var(--info-soft); color: #075985; }
+  details.raw { margin-top: 14px; font-size: 12px; }
+  details.raw summary { cursor: pointer; color: var(--muted); }
+  details.raw pre { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow: auto; font-family: var(--mono); font-size: 11.5px; }
+  .actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+  /* master token panel */
+  .master { background: var(--card); border: 1px solid #c7d2fe; border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; box-shadow: 0 0 0 3px var(--accent-soft); }
+  .m-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-weight: 700; font-size: 15px; margin-bottom: 10px; }
+  .m-title small { font-weight: 500; color: var(--muted); font-size: 12.5px; }
+  .auto-bar { display: flex; align-items: center; gap: 12px; background: var(--accent-soft); border: 1px solid #c7d2fe; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; }
+  .auto-bar .auto-txt { display: flex; flex-direction: column; }
+  .auto-bar b { font-size: 14px; } .auto-bar small { color: var(--muted); font-size: 12px; }
+  .pill.off { background: #e2e8f0; color: #64748b; } .pill.fallback { background: #ede9fe; color: #7c3aed; }
+  .pill.limited { background: var(--warn-soft); color: var(--warn); }
+  .role-sel { font: inherit; font-size: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: #fff; color: var(--ink2); }
+  .headroom { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .pat-wrap { margin: 12px 0; }
+  .pat { display: grid; grid-template-columns: 42px repeat(8, 1fr); gap: 3px; align-items: center; margin-top: 4px; }
+  .pat-lbl { font-size: 10px; color: var(--muted); font-weight: 600; }
+  .pcell { height: 16px; border-radius: 3px; }
+  .pat-ax { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); margin: 3px 0 0 44px; }
+  .card.ineligible { opacity: .72; }
+  .xbtn { border: 1px solid var(--line); background: #fff; color: var(--muted); border-radius: 99px; padding: 1px 10px; font-size: 11px; font-weight: 600; margin-left: 2px; }
+  .xbtn:hover { border-color: var(--warn); color: var(--warn); }
+  .xbtn.on { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .m-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 12px 22px; }
+  .m-grid .k { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 600; margin-bottom: 4px; }
+  .m-active { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .m-active .mini { width: 260px; }
+  .m-none { color: var(--warn); font-weight: 600; }
+  .btn.sm { padding: 3px 10px; font-size: 12px; border-radius: 7px; }
+  .master details.raw { margin-top: 12px; }
+  .master pre { margin: 6px 0; white-space: pre-wrap; word-break: break-all; }
+  .card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .pill.inuse { background: var(--accent); color: #fff; }
+  .side-btns { display: flex; gap: 6px; align-items: center; }
+  .use { border: 1px solid var(--accent); background: #fff; color: var(--accent); border-radius: 8px; height: 30px; padding: 0 10px; font-size: 12px; font-weight: 700; }
+  .use:hover { background: var(--accent-soft); }
+  .use.on { background: var(--accent); color: #fff; cursor: default; }
+
+  .empty { text-align: center; color: var(--muted); padding: 60px 20px; background: var(--card); border: 1px dashed #cbd5e1; border-radius: 14px; }
+  .empty h3 { color: var(--ink); margin: 0 0 6px; }
+
+  /* modal + toast */
+  .overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); display: grid; place-items: center; padding: 20px; z-index: 20; }
+  .modal { width: 100%; max-width: 560px; background: #fff; border-radius: 16px; padding: 22px; box-shadow: 0 20px 50px rgba(15,23,42,.25); }
+  .modal h3 { margin: 0 0 4px; font-size: 17px; }
+  .modal .hint { color: var(--muted); font-size: 12.5px; margin: 0 0 6px; }
+  .modal .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  #toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 13px; z-index: 30; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 90vw; }
+  #toast.show { opacity: 1; }
+
+  @media (max-width: 900px) {
+    .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .head { grid-template-columns: 18px minmax(0, 1fr) auto; }
+    .m-grid { grid-template-columns: minmax(0, 1fr); }
+    .m-active .mini { width: 100%; }
+    .mini { grid-column: 2 / 4; grid-row: 2; }
+    .side { grid-column: 3; grid-row: 1; }
+    .side .ago { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login" class="hidden">
+  <form class="login-card" id="loginForm" autocomplete="on">
+    <div class="brand"><span class="logo"><svg width="16" height="16" viewBox="0 0 16 16" fill="#fff"><rect x="1" y="9" width="3" height="6" rx="1"/><rect x="6.5" y="5" width="3" height="10" rx="1"/><rect x="12" y="1" width="3" height="14" rx="1"/></svg></span>Token Limit Explorer</div>
+    <p>Sign in to see your Claude tokens' usage limits.</p>
+    <label class="f" for="lid">ID</label>
+    <input class="in" id="lid" name="username" autocomplete="username" required autofocus>
+    <label class="f" for="lpass">Password</label>
+    <input class="in" id="lpass" name="password" type="password" autocomplete="current-password" required>
+    <button class="btn primary block" type="submit">Sign in</button>
+    <div class="err" id="loginErr"></div>
+  </form>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <header class="top">
+    <div class="top-in">
+      <div class="brand"><span class="logo"><svg width="16" height="16" viewBox="0 0 16 16" fill="#fff"><rect x="1" y="9" width="3" height="6" rx="1"/><rect x="6.5" y="5" width="3" height="10" rx="1"/><rect x="12" y="1" width="3" height="14" rx="1"/></svg></span>Token Limit Explorer <span class="count" id="count">0 / 100</span></div>
+      <div class="auto">
+        <button class="switch" id="autoSw" title="Auto refresh every 30 minutes" aria-label="Auto refresh"></button>
+        <div><div id="autoLbl">Auto refresh every 30 min</div><small id="autoNext"></small></div>
+      </div>
+      <button class="btn" id="refreshAll"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>Refresh all</span></button>
+      <button class="btn primary" id="addBtn">+ Add token</button>
+      <button class="btn" id="logout">Logout</button>
+    </div>
+  </header>
+  <main>
+    <section class="master">
+      <div class="m-title">Master token <small>Apps use only this token. Requests go out on the token in use below.</small></div>
+      <div class="auto-bar">
+        <button class="switch" id="autoCycle" aria-label="Auto-cycle accounts"></button>
+        <div class="auto-txt"><b id="autoCycleLbl">Auto-cycle: off</b><small id="autoCycleSub">Off: requests use only the token you mark Use. On: cycles across accounts so work never stops.</small></div>
+      </div>
+      <div class="m-grid">
+        <div><span class="k">Master token (put this in your apps)</span>
+          <div class="tok-row"><code class="tok" id="mTok"></code><button class="copy" data-m="copy-master">Copy</button><button class="btn sm" data-m="regen" title="Make a new master token (the old one stops working)">New</button></div></div>
+        <div><span class="k">Base URL (proxy)</span>
+          <div class="tok-row"><code class="tok" id="mUrl"></code><button class="copy" data-m="copy-url">Copy</button></div></div>
+        <div><span class="k">Now in use</span><div class="m-active" id="mActive"></div></div>
+        <div><span class="k">Requests via master (since server start)</span><div id="mTraffic"></div></div>
+      </div>
+      <details class="raw"><summary>How to set it in an app</summary>
+        <pre id="mSnip"></pre>
+        <button class="copy" data-m="copy-snip">Copy</button>
+        <p style="color:var(--muted);margin:8px 0 0">Works for apps that run Claude Code (the <code>claude</code> CLI or the Agent SDK). Set both values in the app's environment. Switching here applies to the app's next request.</p>
+      </details>
+    </section>
+    <div class="stats" id="stats"></div>
+    <div class="toolbar">
+      <input class="in search" id="q" placeholder="Search by holder name or token…">
+      <select class="in" id="sort">
+        <option value="added">Order added</option>
+        <option value="name">Name A → Z</option>
+        <option value="5h">5-hour usage (high first)</option>
+        <option value="7d">Weekly usage (high first)</option>
+        <option value="reset">Weekly reset (soonest first)</option>
+      </select>
+      <button class="btn" id="expandAll">Expand all</button>
+      <button class="btn" id="collapseAll">Collapse all</button>
+    </div>
+    <div id="list"></div>
+  </main>
+</div>
+
+<!-- ADD / RENAME MODAL -->
+<div class="overlay hidden" id="addModal">
+  <form class="modal" id="addForm">
+    <h3>Add token</h3>
+    <p class="hint">Paste a Claude OAuth token (<code>sk-ant-oat01-…</code>). To add many at once, put one per line, optionally as <code>Name: token</code>.</p>
+    <label class="f" for="addName">Token holder name</label>
+    <input class="in" id="addName" maxlength="80" placeholder="e.g. Main account — Max plan">
+    <label class="f" for="addTok">Token</label>
+    <textarea class="in" id="addTok" placeholder="sk-ant-oat01-..." spellcheck="false" required></textarea>
+    <div class="err" id="addErr"></div>
+    <div class="row">
+      <button class="btn" type="button" data-close>Cancel</button>
+      <button class="btn primary" type="submit" id="addGo">Add &amp; check limits</button>
+    </div>
+  </form>
+</div>
+<div class="overlay hidden" id="renModal">
+  <form class="modal" id="renForm">
+    <h3>Token holder name</h3>
+    <p class="hint" id="renTok" style="font-family:var(--mono);word-break:break-all"></p>
+    <input class="in" id="renName" maxlength="80" placeholder="Name">
+    <div class="row">
+      <button class="btn" type="button" data-close>Cancel</button>
+      <button class="btn primary" type="submit">Save</button>
+    </div>
+  </form>
+</div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const INTERVAL_MS = 30 * 60 * 1000;
+let S = null;            // last server state
+let skew = 0;            // server clock - local clock
+const open = new Set();  // expanded token ids
+const rendered = new Map(); // id -> {el, html}
+let renId = null;
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const now = () => Date.now() + skew;
+const IST = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
+const fmtIST = ms => ms ? IST.format(new Date(ms)) + ' IST' : '—';
+function dur(ms) {
+  const m = Math.max(0, Math.round(ms / 60000));
+  if (m < 1) return 'less than a minute';
+  const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+  return d ? `${d}d ${h}h` : h ? `${h}h ${mm}m` : `${mm}m`;
+}
+const ago = ms => { const d = now() - ms; return d < 45000 ? 'just now' : dur(d) + ' ago'; };
+const until = ms => ms - now() <= 0 ? 'now' : 'in ' + dur(ms - now());
+const pctTxt = p => p == null ? '—' : (p > 0 && p < 10 ? p.toFixed(1) : Math.round(p)) + '%';
+const level = (p, st) => st === 'rejected' ? 'bad' : p == null ? 'none' : p >= 85 ? 'bad' : p >= 60 ? 'warn' : '';
+
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2600); }
+
+async function api(method, url, body) {
+  const r = await fetch(url, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' });
+  let j = {};
+  try { j = await r.json(); } catch {}
+  if (r.status === 401 && url !== '/api/login') { showLogin(); throw new Error('Login required'); }
+  if (j && j.tokens) setState(j);
+  if (!r.ok) { const e = new Error(j.error || `HTTP ${r.status}`); e.data = j; throw e; }
+  return j;
+}
+
+function showLogin() { $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); stopPolling(); setTimeout(() => $('#lid').focus(), 30); }
+function showApp() { $('#login').classList.add('hidden'); $('#app').classList.remove('hidden'); }
+
+/* ── derived values ── */
+const win = (t, k) => (t.limits && t.limits.windows || []).find(w => w.key === k) || null;
+function tokenStatus(t) {
+  if (t.checking && !t.limits) return ['Checking…', 'info'];
+  if (t.exempt) return ['Exempt', 'off'];
+  if (t.role === 'off') return ['Off', 'off'];
+  const L = t.limits;
+  if (!L) return ['Not checked', 'grey'];
+  if (L.error) return [/revok/i.test(L.error) ? 'Revoked' : L.http === 401 ? 'Invalid / expired' : 'Error', 'bad'];
+  if (L.status === 'rejected') return ['Limit hit', 'bad'];
+  if (t.blocked) return ['Limited', 'limited'];
+  const hi = Math.max(...(L.windows || []).map(w => w.pct ?? 0), 0);
+  if (L.status === 'allowed_warning' || hi >= 85) return ['Near limit', 'warn'];
+  return ['OK', 'ok'];
+}
+const ROLE_CLS = { premium: 'inuse', standard: 'grey', fallback: 'fallback', off: 'off' };
+
+/* ── render ── */
+const ICON_REFRESH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>';
+
+function miniBar(label, w) {
+  const p = w ? w.pct : null, lv = level(p, w && w.status);
+  const reset = w && w.resetsAt
+    ? `<span class="mreset" data-until="${w.resetsAt}" title="resets at ${esc(fmtIST(w.resetsAt))}"></span>`
+    : `<span class="mreset muted">—</span>`;
+  return `<div class="mbar" title="${esc(w ? w.label : label)}${p == null ? ' — not reported by the API right now' : ''}"><span class="ml">${label}</span><div class="track"><div class="fill ${lv}" style="width:${p == null ? 0 : Math.min(100, p)}%"></div></div><span class="mv">${pctTxt(p)}</span>${reset}</div>`;
+}
+
+function winBox(w) {
+  const lv = level(w.pct, w.status);
+  const st = w.status ? `<span class="pill ${w.status === 'rejected' ? 'bad' : w.status === 'allowed_warning' ? 'warn' : 'ok'}">${esc(w.status.replace('_', ' '))}</span>` : '';
+  return `<div class="win"><h4>${esc(w.label)}</h4>
+    <div class="big">${pctTxt(w.pct)} ${w.pct != null ? '<small>used</small>' : '<small>not reported</small>'}</div>
+    <div class="track"><div class="fill ${lv}" style="width:${w.pct == null ? 0 : Math.min(100, w.pct)}%"></div></div>
+    <div class="meta">${st} ${w.resetsAt ? `Resets ${esc(fmtIST(w.resetsAt))} · <span class="muted" data-until="${w.resetsAt}"></span>` : `<span class="muted">${w.pct == null ? 'The API gave no figure for this window on the last check' : 'No reset time given'}</span>`}</div>
+  </div>`;
+}
+
+const PBLOCKS = ['0-3', '3-6', '6-9', '9-12', '12-15', '15-18', '18-21', '21-24'];
+function patternHtml(t) {
+  const ol = t.pattern, n = t.patternN || 0;
+  if (!ol || t.role === 'fallback') return '';
+  const max = Math.max(1e-4, ...ol);
+  const cell = (v, i) => {
+    const f = v > 0 ? Math.min(1, v / max) : 0;
+    const bg = v > 0 ? `rgba(79,70,229,${(0.18 + 0.72 * f).toFixed(2)})` : 'var(--track)';
+    const ring = i === S.nowBucket ? ';outline:2px solid var(--warn);outline-offset:-1px' : '';
+    return `<span class="pcell" title="${PBLOCKS[i % 8]}h · ${(v * 100).toFixed(1)}% / 30min" style="background:${bg}${ring}"></span>`;
+  };
+  return `<div class="pat-wrap"><div class="k">Owner activity — learned${n < 8 ? ' (still learning…)' : ''} · reserve now ${t.reserve}%</div>
+    <div class="pat"><span class="pat-lbl">Weekday</span>${ol.slice(0, 8).map((v, i) => cell(v, i)).join('')}</div>
+    <div class="pat"><span class="pat-lbl">Weekend</span>${ol.slice(8, 16).map((v, i) => cell(v, i + 8)).join('')}</div>
+    <div class="pat-ax"><span>0</span><span>6</span><span>12</span><span>18</span><span>24h IST</span></div></div>`;
+}
+function cardHtml(t, i) {
+  const [st, cls] = tokenStatus(t);
+  const active = S.master && S.master.activeId === t.id;
+  const role = t.role || 'standard';
+  const L = t.limits;
+  const spinning = t.checking ? ' spin' : '';
+  let body = '';
+  if (L) {
+    if (L.error) body += `<div class="alert bad">${esc(L.error)}</div>`;
+    if (L.note) body += `<div class="alert info">${esc(L.note)}</div>`;
+    if (L.windows && L.windows.length && !(L.error && !L.ok)) body += `<div class="wins">${L.windows.map(winBox).join('')}</div>`;
+    const facts = [];
+    facts.push(['Overall status', esc(L.status || '—')]);
+    if (L.representativeClaim) facts.push(['Binding limit', esc(L.representativeClaim.replace(/_/g, ' '))]);
+    if (L.resetAt) facts.push(['Binding limit resets', esc(fmtIST(L.resetAt))]);
+    if (L.overageStatus) facts.push(['Extra usage (overage)', esc(L.overageStatus) + (L.overageReason ? ` <span style="color:var(--muted)">(${esc(L.overageReason.replace(/_/g, ' '))})</span>` : '')]);
+    if (L.extraUsage) facts.push(['Extra usage detail', `<code>${esc(JSON.stringify(L.extraUsage))}</code>`]);
+    if (L.orgId) facts.push(['Organization ID', `<code>${esc(L.orgId)}</code>`]);
+    facts.push(['Last checked', `${esc(fmtIST(L.checkedAt))} · <span data-ago="${L.checkedAt}"></span>`]);
+    facts.push(['API answer', `HTTP ${esc(L.http ?? '—')}${L.source && L.source.length ? ' · from ' + esc(L.source.join(' + ')) : ''}`]);
+    body += `<div class="facts">${facts.map(([k, v]) => `<div><span class="k">${k}</span>${v}</div>`).join('')}</div>`;
+    if (L.raw && Object.keys(L.raw).length) body += `<details class="raw"><summary>Raw rate-limit headers</summary><pre>${esc(Object.entries(L.raw).map(([k, v]) => `anthropic-ratelimit-unified-${k}: ${v}`).join('\n'))}</pre></details>`;
+  } else {
+    body += `<div class="alert info">${t.checking ? 'Checking limits…' : 'Not checked yet — press refresh.'}</div>`;
+  }
+  body += `<div class="facts" style="margin-bottom:12px">
+      <div><span class="k">Role (auto-cycle)</span>
+        <select class="role-sel" data-act="role">
+          ${['premium', 'standard', 'fallback', 'off'].map(r => `<option value="${r}"${r === role ? ' selected' : ''}>${r}${r === 'premium' ? ' — drained more' : r === 'standard' ? ' — kept in reserve' : r === 'fallback' ? ' — only when others full' : ' — never used'}</option>`).join('')}
+        </select></div>
+      <div><span class="k">Usable headroom now</span>${t.headroom}% ${t.eligible ? '<span class="pill ok">eligible</span>' : (role === 'off' ? '<span class="pill off">off</span>' : t.blocked ? '<span class="pill limited">limited</span>' : '<span class="pill grey">at cap</span>')}</div>
+    </div>
+    ${patternHtml(t)}
+    <div class="actions">
+      ${active ? '' : '<button class="btn primary" data-act="use">Use this token</button>'}
+      <button class="btn" data-act="refresh">${ICON_REFRESH.replace('<svg', '<svg width="14" height="14"')} Refresh this token</button>
+      <button class="btn" data-act="copy">Copy token</button>
+      <button class="btn" data-act="rename">Edit holder name</button>
+      <button class="btn danger" data-act="delete">Delete</button>
+    </div>
+    <div class="facts" style="margin-top:12px"><div><span class="k">Added</span>${esc(fmtIST(t.addedAt))}</div></div>`;
+
+  return `<div class="head" data-act="toggle">
+      <span class="chev">▶</span>
+      <div class="who">
+        <div class="name-row"><span class="idx">#${i + 1}</span><span class="name ${t.name ? '' : 'unnamed'}">${esc(t.name || 'No name')}</span><span class="pill ${ROLE_CLS[role] || 'grey'}">${role}</span><span class="pill ${cls}">${st}</span>${active ? '<span class="pill inuse">IN USE</span>' : ''}${t.checking && L ? '<span class="pill info">Checking…</span>' : ''}<button class="xbtn${t.exempt ? ' on' : ''}" data-act="exempt" title="${t.exempt ? 'Held out of auto-cycle — click to include' : 'Hold this account out of auto-cycle'}">${t.exempt ? 'Exempted ✓' : 'Exempt'}</button></div>
+        <div class="tok-row"><code class="tok" data-stop>${esc(t.token)}</code><button class="copy" data-act="copy">Copy</button></div>
+      </div>
+      <div class="mini">${miniBar('5h', win(t, '5h'))}${miniBar('Week', win(t, '7d'))}</div>
+      <div class="side"><div class="side-btns">${active ? '<button class="use on" data-act="noop" title="The master token uses this token now">In use</button>' : '<button class="use" data-act="use" title="Make the master token use this token">Use</button>'}<button class="icon${spinning}" data-act="refresh" title="Refresh this token">${ICON_REFRESH}</button></div><span class="ago">${L ? `<span data-ago="${L.checkedAt}"></span>` : 'never checked'}</span></div>
+    </div>
+    <div class="body">${body}</div>`;
+}
+
+function sortedTokens() {
+  const q = $('#q').value.trim().toLowerCase();
+  let list = S.tokens.map((t, i) => ({ t, i }));
+  if (q) list = list.filter(({ t }) => (t.name || '').toLowerCase().includes(q) || t.token.toLowerCase().includes(q));
+  const v = $('#sort').value;
+  const pct = (t, k) => { const w = win(t, k); return w && w.pct != null ? w.pct : -1; };
+  if (v === 'name') list.sort((a, b) => (a.t.name || '~').localeCompare(b.t.name || '~'));
+  if (v === '5h') list.sort((a, b) => pct(b.t, '5h') - pct(a.t, '5h'));
+  if (v === '7d') list.sort((a, b) => pct(b.t, '7d') - pct(a.t, '7d'));
+  if (v === 'reset') list.sort((a, b) => ((win(a.t, '7d') || {}).resetsAt || 9e15) - ((win(b.t, '7d') || {}).resetsAt || 9e15));
+  return list;
+}
+
+function render() {
+  if (!S) return;
+  const T = S.tokens;
+  $('#count').textContent = `${T.length} / ${S.max}`;
+  $('#addBtn').disabled = T.length >= S.max;
+
+  renderMaster();
+
+  // stats
+  const c = { ok: 0, warn: 0, bad: 0, err: 0, none: 0 };
+  for (const t of T) {
+    const [st, cls] = tokenStatus(t);
+    if (st === 'Limit hit') c.bad++; else if (cls === 'bad') c.err++; else if (cls === 'warn') c.warn++; else if (cls === 'ok') c.ok++; else c.none++;
+  }
+  $('#stats').innerHTML = [
+    ['', T.length, 'Tokens'], ['ok', c.ok, 'OK'], ['warn', c.warn, 'Near limit (≥85%)'],
+    ['bad', c.bad, 'Limit hit'], ['bad', c.err, 'Invalid / error'], ['', c.none, 'Not checked'],
+  ].map(([k, n, l]) => `<div class="stat ${k}"><b>${n}</b><span>${l}</span></div>`).join('');
+
+  // auto refresh controls
+  const auto = S.settings.autoRefresh;
+  $('#autoSw').classList.toggle('on', auto);
+  $('#autoLbl').textContent = auto ? 'Auto refresh every 30 min' : 'Auto refresh off';
+  const rb = $('#refreshAll');
+  rb.disabled = S.refreshingAll || !T.length;
+  rb.classList.toggle('spin', S.refreshingAll);
+  rb.querySelector('span').textContent = S.refreshingAll ? 'Refreshing…' : 'Refresh all';
+
+  // list (keyed, so open cards and text selections survive updates)
+  const list = $('#list');
+  if (!T.length) {
+    list.innerHTML = `<div class="empty"><h3>No tokens yet</h3>Click <b>+ Add token</b> and paste a Claude OAuth token to see its limits.</div>`;
+    rendered.clear();
+    tickTimes();
+    return;
+  }
+  if (list.querySelector('.empty')) list.innerHTML = '';
+  const want = sortedTokens();
+  const keep = new Set(want.map(x => x.t.id));
+  for (const [id, r] of rendered) if (!keep.has(id)) { r.el.remove(); rendered.delete(id); }
+  let prev = null;
+  for (const { t, i } of want) {
+    let r = rendered.get(t.id);
+    if (!r) { const el = document.createElement('div'); el.className = 'card'; el.dataset.id = t.id; r = { el, html: '' }; rendered.set(t.id, r); }
+    const html = cardHtml(t, i);
+    if (html !== r.html) { r.el.innerHTML = html; r.html = html; }
+    r.el.classList.toggle('open', open.has(t.id));
+    r.el.classList.toggle('active', S.master && S.master.activeId === t.id);
+    r.el.classList.toggle('ineligible', S.master && S.master.auto && !t.eligible);
+    const next = prev ? prev.nextSibling : list.firstChild;
+    if (next !== r.el) list.insertBefore(r.el, next);
+    prev = r.el;
+  }
+  if (!want.length) {
+    if (!list.querySelector('.nomatch')) list.insertAdjacentHTML('beforeend', '<div class="empty nomatch">No token matches your search.</div>');
+  } else list.querySelectorAll('.nomatch').forEach(e => e.remove());
+  tickTimes();
+}
+
+let mLast = '';
+function renderMaster() {
+  const M = S.master || {}, P = S.proxy || {};
+  const base = location.origin + '/proxy';
+  if ($('#mTok').textContent !== M.token) $('#mTok').textContent = M.token || '';
+  if ($('#mUrl').textContent !== base) $('#mUrl').textContent = base;
+  const snip = `export ANTHROPIC_BASE_URL=${base}\nexport CLAUDE_CODE_OAUTH_TOKEN=${M.token}`;
+  if ($('#mSnip').textContent !== snip) $('#mSnip').textContent = snip;
+  const autoOn = !!M.auto;
+  $('#autoCycle').classList.toggle('on', autoOn);
+  $('#autoCycleLbl').textContent = autoOn ? 'Auto-cycle: ON — work never stops' : 'Auto-cycle: off';
+  const elig = S.tokens.filter(t => t.eligible).length;
+  $('#autoCycleSub').innerHTML = autoOn
+    ? `Cycling across <b>${elig}</b> ready account${elig === 1 ? '' : 's'} · ${S.quiet ? 'night mode (full windows)' : 'day mode (leaving owners headroom)'} · fails over on any limit`
+    : 'Off: requests use only the token you mark Use. On: cycles across accounts so work never stops.';
+
+  const i = S.tokens.findIndex(t => t.id === M.activeId), t = S.tokens[i];
+  let html;
+  if (!t) html = `<span class="m-none">${autoOn ? 'Auto-cycle is on — the next request picks the best account. No account has been used yet.' : 'No token in use: apps on the master token get an error. Click <b>Use</b> on a token below.'}</span>`;
+  else {
+    const [st, cls] = tokenStatus(t);
+    const tail = autoOn ? '<span class="headroom">auto-managed</span>' : '<button class="btn sm" data-m="stop" title="Apps on the master token get an error until you pick a token">Stop</button>';
+    html = `<b>#${i + 1} ${esc(t.name || 'No name')}</b><span class="pill ${cls}">${st}</span>${autoOn ? '<span class="pill inuse">latest</span>' : ''}<div class="mini">${miniBar('5h', win(t, '5h'))}${miniBar('Week', win(t, '7d'))}</div>${tail}`;
+  }
+  const traffic = P.total ? `${P.total} request${P.total === 1 ? '' : 's'}${P.inflight ? ` · <b>${P.inflight} running</b>` : ''}${P.errors ? ` · ${P.errors} network error${P.errors === 1 ? '' : 's'}` : ''} · last <span data-ago="${P.lastAt}"></span> (HTTP ${esc(P.lastStatus ?? '…')} ${esc(P.lastPath || '')})` : '<span style="color:var(--muted)">None yet</span>';
+  const key = html + '|' + traffic;
+  if (key !== mLast) { $('#mActive').innerHTML = html; $('#mTraffic').innerHTML = traffic; mLast = key; }
+}
+
+function tickTimes() {
+  document.querySelectorAll('[data-ago]').forEach(e => { e.textContent = ago(+e.dataset.ago); });
+  document.querySelectorAll('[data-until]').forEach(e => { e.textContent = until(+e.dataset.until); });
+  if (!S) return;
+  const next = $('#autoNext');
+  if (!S.settings.autoRefresh) next.textContent = 'use Refresh all / ↻ when you need it';
+  else if (S.refreshingAll) next.textContent = 'refreshing now…';
+  else if (!S.tokens.length) next.textContent = '';
+  else next.textContent = 'next ' + until((S.settings.lastRefreshAll || 0) + INTERVAL_MS) + (S.settings.lastRefreshAll ? ` · last ${ago(S.settings.lastRefreshAll)}` : '');
+}
+
+function setState(j) { S = j; skew = j.now - Date.now(); render(); schedulePoll(); }
+
+/* ── polling + auto refresh (the server holds the timestamp, so tabs agree) ── */
+let pollT = null;
+function busy() { return S && (S.refreshingAll || S.tokens.some(t => t.checking)); }
+function schedulePoll() { clearTimeout(pollT); pollT = setTimeout(poll, busy() ? 1500 : 60000); }
+function stopPolling() { clearTimeout(pollT); pollT = null; }
+async function poll() { try { await api('GET', '/api/state'); } catch { schedulePoll(); } }
+function autoCheck() {
+  if (!S || !S.settings.autoRefresh || busy() || !S.tokens.length || $('#app').classList.contains('hidden')) return;
+  if (now() - (S.settings.lastRefreshAll || 0) >= INTERVAL_MS) api('POST', '/api/refresh-all').catch(() => {});
+}
+setInterval(() => { tickTimes(); autoCheck(); }, 15000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S) poll().then(autoCheck); });
+
+/* ── copy (works on plain http too) ── */
+async function copyText(text) {
+  try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; } } catch {}
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+  document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+  let ok = false; try { ok = document.execCommand('copy'); } catch {}
+  ta.remove(); return ok;
+}
+
+/* ── events ── */
+$('#loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('#loginErr').textContent = '';
+  try { await api('POST', '/api/login', { id: $('#lid').value, pass: $('#lpass').value }); $('#lpass').value = ''; await start(); }
+  catch (err) { $('#loginErr').textContent = err.message; }
+});
+$('#logout').addEventListener('click', async () => { await api('POST', '/api/logout').catch(() => {}); S = null; rendered.clear(); $('#list').innerHTML = ''; showLogin(); });
+$('#autoSw').addEventListener('click', async () => {
+  const on = !S.settings.autoRefresh;
+  await api('PUT', '/api/settings', { autoRefresh: on });
+  toast(on ? 'Auto refresh on — every 30 minutes' : 'Auto refresh off');
+  autoCheck();
+});
+$('#autoCycle').addEventListener('click', async () => {
+  const on = !(S.master && S.master.auto);
+  await api('PUT', '/api/settings', { auto: on });
+  toast(on ? 'Auto-cycle ON — work never stops' : 'Auto-cycle off — using only the token you mark Use');
+});
+$('#refreshAll').addEventListener('click', () => api('POST', '/api/refresh-all').then(() => toast('Refreshing all tokens…')).catch(e => toast(e.message)));
+$('#q').addEventListener('input', render);
+$('#sort').addEventListener('change', render);
+$('#expandAll').addEventListener('click', () => { S.tokens.forEach(t => open.add(t.id)); render(); });
+$('#collapseAll').addEventListener('click', () => { open.clear(); render(); });
+
+function openModal(id) { const m = $(id); m.classList.remove('hidden'); setTimeout(() => m.querySelector('input,textarea').focus(), 30); }
+function closeModals() { document.querySelectorAll('.overlay').forEach(m => m.classList.add('hidden')); }
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModals));
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('mousedown', e => { if (e.target === o) closeModals(); }));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModals(); });
+
+$('#addBtn').addEventListener('click', () => { $('#addName').value = ''; $('#addTok').value = ''; $('#addErr').textContent = ''; openModal('#addModal'); });
+$('#addForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const go = $('#addGo');
+  go.disabled = true; $('#addErr').textContent = '';
+  try {
+    const j = await api('POST', '/api/tokens', { name: $('#addName').value, text: $('#addTok').value });
+    if (j.skipped && j.skipped.length) $('#addErr').textContent = `Added ${j.added}. Skipped: ${j.skipped.join('; ')}`;
+    else closeModals();
+    toast(`Added ${j.added} token${j.added === 1 ? '' : 's'} — checking limits…`);
+    const last = S.tokens[S.tokens.length - 1];
+    if (j.added === 1 && last) { open.add(last.id); render(); }
+  } catch (err) { $('#addErr').textContent = err.message; }
+  finally { go.disabled = false; }
+});
+$('#renForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  try { await api('PATCH', `/api/tokens/${renId}`, { name: $('#renName').value }); closeModals(); toast('Name saved'); }
+  catch (err) { toast(err.message); }
+});
+
+$('#list').addEventListener('click', async e => {
+  if (e.target.closest('[data-stop]')) return;
+  const a = e.target.closest('[data-act]');
+  const card = e.target.closest('.card');
+  if (!a || !card) return;
+  const id = card.dataset.id, t = S.tokens.find(x => x.id === id);
+  if (!t) return;
+  const act = a.dataset.act;
+  if (act === 'toggle') { open.has(id) ? open.delete(id) : open.add(id); card.classList.toggle('open', open.has(id)); return; }
+  e.stopPropagation();
+  if (act === 'copy') {
+    const ok = await copyText(t.token);
+    toast(ok ? `Copied token${t.name ? ' of ' + t.name : ''}` : 'Copy failed — select the token text and press Ctrl+C');
+    if (ok && a.classList.contains('copy')) { a.textContent = 'Copied ✓'; a.classList.add('done'); setTimeout(() => { a.textContent = 'Copy'; a.classList.remove('done'); }, 1500); }
+  }
+  if (act === 'exempt') api('PATCH', `/api/tokens/${id}`, { exempt: !t.exempt }).then(() => toast(t.exempt ? `${t.name || 'Token'} back in auto-cycle` : `${t.name || 'Token'} exempted from auto-cycle`)).catch(err => toast(err.message));
+  if (act === 'use') api('PUT', '/api/active', { id }).then(() => toast(`Master token now uses ${t.name || 'token #' + (S.tokens.indexOf(t) + 1)}`)).catch(err => toast(err.message));
+  if (act === 'refresh') api('POST', `/api/tokens/${id}/refresh`).catch(err => toast(err.message));
+  if (act === 'rename') { renId = id; $('#renName').value = t.name || ''; $('#renTok').textContent = t.token; openModal('#renModal'); }
+  if (act === 'delete') {
+    if (!confirm(`Delete ${t.name ? '"' + t.name + '"' : 'this token'} from the list?\n\n${t.token.slice(0, 30)}…`)) return;
+    open.delete(id);
+    await api('DELETE', `/api/tokens/${id}`).then(() => toast('Token deleted')).catch(err => toast(err.message));
+  }
+});
+
+$('#list').addEventListener('change', async e => {
+  const sel = e.target.closest('select[data-act="role"]');
+  if (!sel) return;
+  const card = e.target.closest('.card'); const id = card && card.dataset.id;
+  const t = S.tokens.find(x => x.id === id); if (!t) return;
+  api('PATCH', `/api/tokens/${id}`, { role: sel.value }).then(() => toast(`${t.name || 'Token'} role → ${sel.value}`)).catch(err => toast(err.message));
+});
+
+document.querySelector('.master').addEventListener('click', async e => {
+  const b = e.target.closest('[data-m]');
+  if (!b || !S) return;
+  const m = b.dataset.m;
+  const copied = async (text, what) => {
+    const ok = await copyText(text);
+    toast(ok ? `Copied ${what}` : 'Copy failed: select the text and press Ctrl+C');
+    if (ok && b.classList.contains('copy')) { b.textContent = 'Copied ✓'; b.classList.add('done'); setTimeout(() => { b.textContent = 'Copy'; b.classList.remove('done'); }, 1500); }
+  };
+  if (m === 'copy-master') copied(S.master.token, 'master token');
+  if (m === 'copy-url') copied($('#mUrl').textContent, 'base URL');
+  if (m === 'copy-snip') copied($('#mSnip').textContent, 'settings');
+  if (m === 'stop') api('PUT', '/api/active', { id: null }).then(() => toast('No token in use now')).catch(err => toast(err.message));
+  if (m === 'regen') {
+    if (!confirm('Make a new master token?\n\nThe current master token stops working at once: every app using it must be given the new one.')) return;
+    api('POST', '/api/master/regenerate').then(() => toast('New master token made: update your apps')).catch(err => toast(err.message));
+  }
+});
+
+async function start() {
+  try { await api('GET', '/api/state'); showApp(); autoCheck(); }
+  catch { /* api() already showed the login page */ }
+}
+start();
+</script>
+</body>
+</html>

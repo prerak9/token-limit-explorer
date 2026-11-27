@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Run Claude Code on the master token: requests go through Token Limit Explorer and out on the token
+# marked IN USE in the dashboard. Reads the current master token from data/tokens.json, so "New" in the
+# dashboard needs no change here. Usage: ./claude-master [any claude args]
+DIR="$(dirname "$(readlink -f "$0")")"
+URL="${TLE_URL:-http://127.0.0.1:8740}"
+# The server is not started at boot: if it is down (e.g. after a reboot) and local, start it first.
+if ! curl -s -m 3 -o /dev/null "$URL/"; then
+  case "$URL" in
+    http://127.0.0.1:*|http://localhost:*)
+      echo "Token Limit Explorer is not running; starting it..." >&2
+      "$DIR/start.sh" >&2
+      for _ in 1 2 3 4 5 6 7 8 9 10; do curl -s -m 2 -o /dev/null "$URL/" && break; sleep 0.5; done ;;
+  esac
+  curl -s -m 3 -o /dev/null "$URL/" || { echo "Token Limit Explorer at $URL is not answering, so Claude cannot connect. See $DIR/logs/server.log" >&2; exit 1; }
+fi
+MASTER=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['master']['token'])" "$DIR/data/tokens.json") || { echo "Cannot read the master token from $DIR/data/tokens.json" >&2; exit 1; }
+unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN   # these would win over the master token
+export ANTHROPIC_BASE_URL="$URL/proxy"
+export CLAUDE_CODE_OAUTH_TOKEN="$MASTER"
+exec claude "$@"

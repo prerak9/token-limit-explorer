@@ -1,0 +1,11 @@
+# runtime state & secrets — never commit
+data/
+logs/
+*.bak
+*.log
+secret
+.env
+
+# node
+node_modules/
+npm-debug.log*
